@@ -1,0 +1,7 @@
+{
+  "BLOCK_REWARD": 50,
+  "DIFFICULTY": 4,
+  "BLOCK_TIME": 30,
+  "NETWORK_NAME": "HamzaCoin",
+  "MAX_SUPPLY": 21000000
+}
