@@ -22,6 +22,7 @@ class Blockchain:
         self.chain = [GENESIS_BLOCK]
         self.pending_tx = []
         self.peers = set()
+        self.price_usd = float(CONFIG.get("PRICE_USD", 0.0))
 
     def get_last_block(self):
         return self.chain[-1]
@@ -62,7 +63,6 @@ class Blockchain:
         temp_str = json.dumps(temp, sort_keys=True)
         return hashlib.sha256(temp_str.encode()).hexdigest()
 
-# Flask app
 app = Flask(__name__)
 blockchain = Blockchain()
 
@@ -93,14 +93,40 @@ def mine():
 
 @app.route("/balance/<address>", methods=["GET"])
 def get_balance(address):
-    balance = 0
+    balance = 0.0
     for block in blockchain.chain:
         for tx in block["transactions"]:
             if tx["to"] == address:
-                balance += tx["amount"]
+                balance += float(tx["amount"])
             if tx["from"] == address:
-                balance -= tx["amount"]
-    return jsonify(balance)
+                balance -= float(tx["amount"])
+    return jsonify({
+        "address": address,
+        "balance": balance,
+        "price_usd": blockchain.price_usd,
+        "balance_usd": round(balance * blockchain.price_usd, 8)
+    })
+
+# ---- Price APIs ----
+@app.route("/price", methods=["GET"])
+def get_price():
+    return jsonify({
+        "symbol": CONFIG.get("NETWORK_NAME", "HamzaCoin"),
+        "price_usd": blockchain.price_usd
+    })
+
+@app.route("/price", methods=["POST"])
+def set_price():
+    data = request.get_json(force=True)
+    p = data.get("price_usd")
+    try:
+        p = float(p)
+        if p < 0:
+            return jsonify({"ok": False, "error": "price must be >= 0"}), 400
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid price"}), 400
+    blockchain.price_usd = p
+    return jsonify({"ok": True, "price_usd": blockchain.price_usd})
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
